@@ -29,7 +29,7 @@ const SignUp = () => {
     }
 
     try {
-      const response = await fetch('http://10.0.3.2:5001/db/register', {
+      const response = await fetch('https://ridesmart-q66b.onrender.com/db/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ first_name: firstName, last_name: lastName, email, password })

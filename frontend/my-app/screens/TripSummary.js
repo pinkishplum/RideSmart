@@ -8,193 +8,117 @@ import Trip from "../components/Trip";
 import { Border, Color } from "../GlobalStyles";
 import MakeSummaryMap from "./MakeSummaryMap";
 
-const CLIENT_CAP = 89;
-const CLIENT_DURATION = 30000;
-const POLL_INTERVAL = 2000;
-const FINAL_JUMP_STEP = 5;
-const FINAL_JUMP_TOTAL = 10000;
 const CAR_ICON_WIDTH = 40;
 const BAR_MAX_WIDTH = 380;
+const TOTAL_DURATION = 15000; // 15 seconds
 
 function cleanupAddress(address) {
   if (!address) return address;
-  else
-    return address
-
-  // let [_, ...rest] = address.split(",");
-  // if (!address) {
-  //    return address;
-  // }
-  //
-  // const cleanedParts = rest
-  //   .map((chunk) => chunk.trim())
-  //   .filter((chunk) => chunk.toLowerCase() !== "saudi arabia");
-  //
-  // return cleanedParts.join(", ");
+  return address;
 }
 
 const TripSummary = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const [distance, setDistance] = useState(0); // <-- local state for distance
 
+  const { user_id, pickupText, destinationText, pickupCoords, destinationCoords } =
+    route.params || {};
 
-  const {
-    user_id,
-    pickupText,
-    destinationText,
-    pickupCoords,
-    destinationCoords,
-  } = route.params || {};
+  // Distance from the map
+  const [distance, setDistance] = useState(0);
 
-  // Local states
-  const [fakeProgress, setFakeProgress] = useState(0);
-  const [serverDone, setServerDone] = useState(false);
-  const [finalJumpStarted, setFinalJumpStarted] = useState(false);
+  // We'll store the results from the server
   const [finalResults, setFinalResults] = useState([]);
+  // Track whether we've started our loading bar animation yet
+  const [animationStarted, setAnimationStarted] = useState(false);
+
+  // For the bar animation
+  const [localProgress, setLocalProgress] = useState(0); // 0..100
   const animatedProgress = useRef(new Animated.Value(0)).current;
 
+  // Cleaned addresses
   const [cleanedPickup, setCleanedPickup] = useState("");
   const [cleanedDestination, setCleanedDestination] = useState("");
 
+  // 1) Fetch prices ONCE distance > 0.
   useEffect(() => {
-    if (!user_id) {
-      console.warn("No user_id provided; cannot proceed!");
-      return;
-    }
+    if (!user_id || distance <= 0) return;
 
-    const doRequest = async () => {
+    const _cleanedPickup = cleanupAddress(pickupText);
+    const _cleanedDestination = cleanupAddress(destinationText);
+
+    setCleanedPickup(_cleanedPickup);
+    setCleanedDestination(_cleanedDestination);
+
+    const fetchPrices = async () => {
       try {
-        const _cleanedPickup = cleanupAddress(pickupText);
-        const _cleanedDestination = cleanupAddress(destinationText);
-
-        setCleanedPickup(_cleanedPickup);
-        setCleanedDestination(_cleanedDestination);
-
-        console.log("CLEANED ADDRESSES", _cleanedPickup, _cleanedDestination);
-
-        const resp = await axios.post("http://192.168.100.165:5001/proccess/get_prices", {
+        // If on Android emulator, use 10.0.2.2.
+        // If on a real device, use your local machine IP (e.g. 192.168.x.x)
+        const endpoint = "https://ridesmart-q66b.onrender.com/proccess/get_prices";
+        console.log("Calling /get_prices with:", {
+          user_id,
+          distance,
           pick_up: _cleanedPickup,
           destination: _cleanedDestination,
-          user_id,
         });
 
-        console.log("TripSummary => server response:", resp.data);
-        setFinalResults(resp.data.results);
-      } catch (err) {
-        console.error("Error requesting get_prices in TripSummary:", err);
+        const resp = await axios.post(endpoint, {
+          user_id,
+          distance,
+          pick_up: _cleanedPickup,
+          destination: _cleanedDestination,
+        });
+        console.log("Server responded =>", resp.data);
+
+        // Save the results. We'll wait until they're non-empty to start the animation.
+        setFinalResults(resp.data.results || []);
+      } catch (error) {
+        console.error("Error calling /get_prices:", error);
       }
     };
 
-    doRequest();
-  }, [user_id, pickupText, destinationText]);
+    fetchPrices();
+  }, [user_id, distance, pickupText, destinationText]);
 
-  // 2) Animate bar from 0..80% over 25s
+  // 2) Once we have non-empty finalResults, we start the local progress bar.
+  //    This prevents the bar from finishing while finalResults is still empty.
   useEffect(() => {
-    let localTimer = null;
-    let startTime = Date.now();
-    let currentProg = 0;
-    const stepDuration = CLIENT_DURATION / CLIENT_CAP;
+    if (!finalResults.length) return;  // Only run if we actually have results
+    if (animationStarted) return;      // Don't start twice
 
-    const tick = () => {
-      if (serverDone) {
-        clearInterval(localTimer);
-        finalJumpTo100(currentProg);
-        return;
-      }
-      const elapsed = Date.now() - startTime;
-      const steps = Math.floor(elapsed / stepDuration);
+    console.log("TripSummary => Received finalResults, starting animation now...");
+    setAnimationStarted(true);
+    setLocalProgress(0);
 
-      if (steps >= CLIENT_CAP) {
-        clearInterval(localTimer);
-        setFakeProgress(CLIENT_CAP);
-      } else {
-        if (steps !== currentProg) {
-          currentProg = steps;
-          setFakeProgress(currentProg);
-        }
-      }
-    };
+    Animated.timing(animatedProgress, {
+      toValue: 100,
+      duration: TOTAL_DURATION,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start(() => {
+      console.log("TripSummary => Animation complete. finalResults:", finalResults);
 
-    localTimer = setInterval(tick, 100);
-    return () => clearInterval(localTimer);
-  }, [serverDone]);
-
-  // 3) Poll server until progress=100
-  useEffect(() => {
-    if (!user_id) return;
-
-    const pollId = setInterval(async () => {
-      if (serverDone) {
-        clearInterval(pollId);
-        return;
-      }
-      try {
-        const resp = await axios.get(
-          `http://192.168.100.165:5001/proccess/get_progress?user_id=${user_id}`
-        );
-        const pVal = resp.data.progress || 0;
-        console.log("TripSummary poll => progress:", pVal);
-
-        if (pVal >= 100) {
-          setServerDone(true);
-          clearInterval(pollId);
-          finalJumpTo100(fakeProgress);
-        }
-      } catch (err) {
-        console.error("Error polling progress:", err);
-      }
-    }, POLL_INTERVAL);
-
-    return () => clearInterval(pollId);
-  }, [serverDone, user_id, fakeProgress]);
-
-  useEffect(() => {
-    if (serverDone && finalResults.length > 0) {
-      // PASS the CLEANED addresses to PricesList
+      // Navigate to PricesList after the animation finishes
       navigation.replace("PricesList", {
         results: finalResults,
-        pickupText: cleanedPickup,          // <--- cleaned
+        pickupText: cleanedPickup,
         destinationText: cleanedDestination,
-        distance: distance,
-
+        distance,
       });
-    }
-  }, [serverDone, finalResults, cleanedPickup, cleanedDestination, navigation,distance]);
+    });
+  }, [finalResults, animationStarted, cleanedPickup, cleanedDestination, distance, navigation, animatedProgress]);
 
-  // Animate bar
+  // Keep localProgress in sync for display
   useEffect(() => {
-    Animated.timing(animatedProgress, {
-      toValue: fakeProgress,
-      duration: 300,
-      useNativeDriver: false,
-      easing: Easing.linear,
-    }).start();
-  }, [fakeProgress]);
+    const listenerId = animatedProgress.addListener(({ value }) => {
+      setLocalProgress(Math.floor(value));
+    });
+    return () => {
+      animatedProgress.removeListener(listenerId);
+    };
+  }, [animatedProgress]);
 
-  const finalJumpTo100 = (startVal) => {
-    if (finalJumpStarted) return;
-    setFinalJumpStarted(true);
-
-    let currentVal = startVal;
-    const stepsNeeded = Math.ceil((100 - currentVal) / FINAL_JUMP_STEP);
-    const stepDuration = FINAL_JUMP_TOTAL / stepsNeeded;
-
-    const intervalId = setInterval(() => {
-      currentVal += FINAL_JUMP_STEP;
-      if (currentVal >= 100) currentVal = 100;
-      setFakeProgress(currentVal);
-
-      if (currentVal >= 100) {
-        clearInterval(intervalId);
-        setServerDone(true);
-      }
-    }, stepDuration);
-  };
-
-  let displayedProgress = serverDone ? fakeProgress : Math.min(fakeProgress, CLIENT_CAP);
-  if (displayedProgress > 100) displayedProgress = 100;
-
+  // Move the car icon from 0..(BAR_MAX_WIDTH - CAR_ICON_WIDTH)
   const translateXCar = animatedProgress.interpolate({
     inputRange: [0, 100],
     outputRange: [0, BAR_MAX_WIDTH - CAR_ICON_WIDTH],
@@ -211,8 +135,9 @@ const TripSummary = () => {
         <View style={styles.progressBarContainer}>
           <View style={styles.textContainer}>
             <Text style={styles.collectingPrices}>Collecting Prices</Text>
-            <Text style={styles.percentageText}>{displayedProgress}%</Text>
+            <Text style={styles.percentageText}>{localProgress}%</Text>
           </View>
+
           <View style={styles.progressBarBackground}>
             <Animated.View
               style={[
@@ -240,10 +165,10 @@ const TripSummary = () => {
           <MakeSummaryMap
             pickupCoords={pickupCoords}
             destinationCoords={destinationCoords}
-             onDistanceCalculated={(dist) => {
-        console.log("Distance from map:", dist);
-        setDistance(dist);
-      }}
+            onDistanceCalculated={(dist) => {
+              console.log("Distance from map:", dist);
+              setDistance(dist);
+            }}
           />
         </View>
       </View>
@@ -251,7 +176,6 @@ const TripSummary = () => {
   );
 };
 
-// ---STYLES (unchanged)---
 const styles = StyleSheet.create({
   tripSummary: {
     backgroundColor: Color.white,

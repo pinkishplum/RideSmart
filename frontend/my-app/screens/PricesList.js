@@ -1,3 +1,4 @@
+
 // PricesList.js
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View, Text, TouchableOpacity } from "react-native";
@@ -28,35 +29,28 @@ const parsePriceText = (rawText, appName) => {
 
 const PricesList = () => {
   const route = useRoute();
-  const { results = [], pickupText = "",
-    destinationText = "",   distance = 0 // <<-- get the distance
-    } = route.params || {};
-
-  useEffect(() => {
-    console.log("Results received in PricesList:", results);
-  }, [results]);
-
-  if (!results.length) {
-    return (
-      <View style={styles.container}>
-        <Text>No results available. Please try again later.</Text>
-      </View>
-    );
-  }
+  const {
+    results = [],
+    pickupText = "",
+    destinationText = "",
+    distance = 0,
+  } = route.params || {};
 
   const [parsedData, setParsedData] = useState([]);
-  const [hasSaved, setHasSaved] = useState(false); // so we only save once
+  const [hasSaved, setHasSaved] = useState(false);
+
+  useEffect(() => {
+    console.log("PricesList => results received:", results);
+    console.log("PricesList => distance:", distance);
+  }, [results, distance]);
 
   useEffect(() => {
     let numericData = results.map((item) => {
-      if (item.error) {
-        return { ...item, numericPrice: null };
-      } else {
-        const val = parsePriceText(item.price, item.app);
-        return { ...item, numericPrice: val };
-      }
+      const val = parsePriceText(item.price, item.app);
+      return { ...item, numericPrice: val };
     });
 
+    // If some apps had no numericPrice, replace with average
     const validPrices = numericData
       .map((d) => d.numericPrice)
       .filter((p) => p !== null && !isNaN(p));
@@ -85,6 +79,7 @@ const PricesList = () => {
     setParsedData(numericData);
   }, [results]);
 
+  // Auto-save to DB
   useEffect(() => {
     if (!parsedData.length || hasSaved) return;
 
@@ -107,18 +102,16 @@ const PricesList = () => {
         case "Careem":
           priceCareem = item.numericPrice;
           break;
-        default:
-          break;
       }
     });
 
     const userId = results[0]?.user_id || 0;
 
     const now = new Date();
-    const date = now.toISOString().slice(0, 10);  // "YYYY-MM-DD"
-    const time = now.toTimeString().slice(0, 5);  // "HH:MM"
+    const date = now.toISOString().slice(0, 10);
+    const time = now.toTimeString().slice(0, 5);
 
-    fetch("http://10.0.3.2:5001/db/save_ride_and_trip", {
+    fetch("http://10.0.2.2:5001/db/save_ride_and_trip", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -129,7 +122,7 @@ const PricesList = () => {
         price_bolt: priceBolt || 0,
         price_jeeny: priceJeeny || 0,
         price_careem: priceCareem || 0,
-        distance_km: distance, // <-- ADD THIS
+        distance_km: distance,
         date,
         time,
       }),
@@ -142,13 +135,19 @@ const PricesList = () => {
       .catch((err) => {
         console.log("Auto-save error:", err);
       });
-  }, [parsedData, hasSaved, results, pickupText, destinationText]);
+  }, [parsedData, hasSaved, results, pickupText, destinationText, distance]);
+
+  if (!results.length) {
+    return (
+      <View style={styles.container}>
+        <Text>No results available. Please try again later.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <Headlines headline="Prices List" />
-
-      {/* Show the Trip info at the top */}
       <View style={styles.tripContainer}>
         <Trip pickup={pickupText} destination={destinationText} />
       </View>
@@ -172,7 +171,7 @@ const PricesList = () => {
                   {item.isBestPrice && (
                     <View style={styles.bestPriceBadge}>
                       <Image
-                        source={require("../assets/Money-Black.png")} // Black Icon
+                        source={require("../assets/Money-Black.png")}
                         style={styles.moneyIcon}
                       />
                       <Text style={styles.bestPriceText}>Best Price!</Text>
@@ -198,7 +197,7 @@ const PricesList = () => {
   );
 };
 
-// ---------- STYLES (unchanged) ----------
+// same styles...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -211,7 +210,7 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     marginTop: 15,
     elevation: 2,
-    marginBottom:10,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#d3d3d3",
   },
@@ -237,18 +236,18 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
   priceText: { fontSize: 16, fontWeight: "bold", color: "#292929" },
   bestPriceBadge: {
-    backgroundColor: Color.mustard300, //Same Copy Code in Search Screen
+    backgroundColor: Color.mustard300,
     paddingVertical: 2,
     paddingHorizontal: 8,
     borderRadius: 8,
-    borderWidth:1,
-    borderColor: Color.mustard300, //Same Copy Code in Search Screen
+    borderWidth: 1,
+    borderColor: Color.mustard300,
     marginLeft: 55,
     flexDirection: "row",
     alignItems: "center",
   },
-  moneyIcon: { width: 16, height: 16, marginRight: 7 }, // Ziyad please make sure the dimensions are good and Im sorry for that
-  bestPriceText: { color: "#292929", fontSize: 12, fontWeight: "bold" }, // changed text to black
+  moneyIcon: { width: 16, height: 16, marginRight: 7 },
+  bestPriceText: { color: "#292929", fontSize: 12, fontWeight: "bold" },
   openAppButton: {
     backgroundColor: "#009B73",
     borderRadius: 8,
