@@ -16,6 +16,8 @@ import { Color, Border, FontSize, Padding, Gap } from "../GlobalStyles";
 import { useUser } from "../context/UserContext";
 import PickupEnter from "./PickupEnter";
 import axios from "axios";
+import { scale, verticalScale, moderateScale } from "react-native-size-matters";
+
 
 const Search = () => {
   const navigation = useNavigation();
@@ -88,7 +90,7 @@ const Search = () => {
           <View style={styles.secondRow}>
             <View style={styles.offersRow}>
               <Text style={styles.offerText}>
-                Use code <Text style={styles.rs10}>RS10</Text> for 10% off your
+                Use <Text style={styles.rs10}>RS10</Text> for 10% off your
                 first ride after your first comparison
               </Text>
               <TouchableOpacity>
@@ -173,13 +175,14 @@ const Search = () => {
         </View>
 
         <View style={styles.buttonContainer}>
-          <Button
-            title="Search"
-            onPress={handleSearch}
-            textStyle={{ fontSize: 30 }}
-            style={styles.searchButtonStyle}
-          />
-        </View>
+<TouchableOpacity style={styles.searchButtonStyle} onPress={handleSearch}>
+    <Image
+      source={require("../assets/Search-w.png")}
+      style={styles.rightIcon}
+    />
+                  <Text style={styles.searchButtonText}>Search</Text>
+                 </TouchableOpacity>
+            </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -190,103 +193,136 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    padding: 16,
+    padding: scale(16),
   },
   topRow: {
-    marginTop: 4,
+    marginTop: verticalScale(35),
     alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: Gap.gap_xl,
+    marginBottom: verticalScale(Gap.gap_md),
   },
   notificationIcon: {
-    width: 24,
-    height: 24,
-    marginTop: 10,
+    width: scale(24),
+    height: scale(24),
+    marginTop: 0,
     position: "absolute",
-    left: 320,
+    left: scale(310),
   },
   codeContainer: {
     borderRadius: Border.br_base,
-    padding: 20,
+    padding: scale(20),
     backgroundColor: Color.casal700,
-    marginBottom: Gap.gap_xl,
+    marginBottom: verticalScale(30),
+    marginTop: verticalScale(20),
+    alignSelf: "center",
+    width: "95%",
   },
   firstRow: {
     flexDirection: "row",
-    width: 330,
-    height: 49,
+    width: scale(300),
+    height: verticalScale(50),
   },
   secondRow: {
     flexDirection: "row",
     alignItems: "center",
+    width: scale(310),
   },
   offersRow: {
     flexDirection: "row",
     alignItems: "center",
   },
   greenLogoIcon: {
-    width: 80,
-    height: 80,
+    width: scale(90),
+    height: scale(90),
     position: "absolute",
-    left: 250,
-    top: -19,
+    left: scale(200),
+    top: verticalScale(-35),
     margin: "auto",
   },
   welcomeText: {
-    fontSize: FontSize.size_xl,
+    fontSize: moderateScale(FontSize.size_xl),
     fontWeight: "900",
     color: Color.white,
-    marginRight: 10,
+    marginRight: scale(10),
     marginBottom: 0,
   },
   offerText: {
-    fontSize: FontSize.size_smi,
+    fontSize: moderateScale(FontSize.size_smi),
     color: Color.white,
     flex: 1,
-    marginRight: 10,
+    marginRight: scale(70),
     marginBottom: 0,
   },
   rs10: {
-    fontWeight: "600",
+    fontWeight: "800",
   },
   copyCode: {
     backgroundColor: Color.mustard300,
     borderRadius: Border.br_5xs,
-    paddingHorizontal: Padding.p_3xs,
-    paddingVertical: Padding.p_4xs,
+    paddingHorizontal: scale(Padding.p_3xs),
+    paddingVertical: verticalScale(Padding.p_4xs),
+    alignSelf: "flex-start",
+    marginLeft: scale(0),
+    marginRight: scale(7),
   },
   copyCodeText: {
-    fontSize: FontSize.size_base,
+    fontSize: moderateScale(FontSize.size_base),
     fontWeight: "700",
     color: Color.casal950,
     textAlign: "left",
   },
   inputFieldsContainer: {
-    marginBottom: 70,
+    marginBottom: verticalScale(80),
+    alignItems: "center",
   },
   inputFieldStyle: {
-    marginBottom: Gap.gap_xl,
+    marginBottom: verticalScale(Gap.gap_lg),
+    width: "97%",
   },
   buttonContainer: {
-    marginBottom: Gap.gap_xl,
+    marginBottom: verticalScale(Gap.gap_lg),
   },
   searchButtonStyle: {
-    borderRadius: 30,
-    paddingVertical: 15,
-    color: Color.green,
+    alignSelf: "center",
+    borderRadius: scale(30),
+    width: "87%",
+    backgroundColor: Color.tropicalRainForest600,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: verticalScale(15),
+    paddingHorizontal: scale(25),
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: verticalScale(4) },
+    shadowOpacity: 0.2,
+    shadowRadius: scale(4),
+  },
+  searchButtonText: {
+    fontSize: moderateScale(35),
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  rightIcon: {
+    width: scale(30),
+    height: scale(30),
+    marginRight: scale(10),
+    tintColor: "#fff",
   },
   iconStyle: {
-    width: 20,
-    height: 20,
+    width: scale(20),
+    height: scale(20),
     resizeMode: "contain",
   },
   helloText: {
-    fontSize: 24,
+    fontSize: moderateScale(25),
     fontWeight: "bold",
     color: Color.black,
+    marginLeft: scale(16),
   },
   locationText: {
     textDecorationLine: "underline",
+    fontSize: moderateScale(11),
+    marginLeft: scale(16),
   },
 });
 
