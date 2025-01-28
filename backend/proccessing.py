@@ -12,7 +12,7 @@ def get_fake_prices(distance, user_id):
 
     for app in apps:
         # random rate between 3.0 and 5.0
-        rate = random.uniform(3.0, 5.0)
+        rate = random.uniform(4.0, 6.0)
         total_price = distance * rate
         price_str = f"{total_price:.2f} SAR"
         results.append({
