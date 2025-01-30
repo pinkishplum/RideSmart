@@ -10,7 +10,7 @@ import MakeSummaryMap from "./MakeSummaryMap";
 
 const CAR_ICON_WIDTH = 40;
 const BAR_MAX_WIDTH = 380;
-const TOTAL_DURATION = 15000; // 15 seconds
+const TOTAL_DURATION = 20000; // 15 seconds
 
 function cleanupAddress(address) {
   if (!address) return address;

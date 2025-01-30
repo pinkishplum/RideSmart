@@ -1,4 +1,3 @@
-
 // PricesList.js
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View, Text, TouchableOpacity } from "react-native";
@@ -6,7 +5,7 @@ import { Image } from "expo-image";
 import { useRoute } from "@react-navigation/native";
 import Headlines from "../components/Headlines";
 import Trip from "../components/Trip";
-import { Color, Border } from "../GlobalStyles";
+import { Color } from "../GlobalStyles";
 
 const parsePriceText = (rawText, appName) => {
   if (!rawText) return null;
@@ -37,20 +36,29 @@ const PricesList = () => {
   } = route.params || {};
 
   const [parsedData, setParsedData] = useState([]);
-  const [hasSaved, setHasSaved] = useState(false);
+  const [aiIndex, setAiIndex] = useState(null);
+
+  // Log initial route params
+  useEffect(() => {
+    console.log("=== PricesList Mounted ===");
+    console.log("PricesList => route.params.results:", results);
+    console.log("PricesList => route.params.pickupText:", pickupText);
+    console.log("PricesList => route.params.destinationText:", destinationText);
+    console.log("PricesList => route.params.distance:", distance);
+  }, [results, pickupText, destinationText, distance]);
 
   useEffect(() => {
-    console.log("PricesList => results received:", results);
-    console.log("PricesList => distance:", distance);
-  }, [results, distance]);
+    console.log("Parsing results to numeric prices...");
 
-  useEffect(() => {
+    // 1) Parse all prices to numeric
     let numericData = results.map((item) => {
       const val = parsePriceText(item.price, item.app);
       return { ...item, numericPrice: val };
     });
 
-    // If some apps had no numericPrice, replace with average
+    console.log("Parsed numericData:", numericData);
+
+    // 2) Replace null/NaN prices with average
     const validPrices = numericData
       .map((d) => d.numericPrice)
       .filter((p) => p !== null && !isNaN(p));
@@ -59,6 +67,7 @@ const PricesList = () => {
     if (validPrices.length > 0) {
       average = validPrices.reduce((sum, x) => sum + x, 0) / validPrices.length;
     }
+    console.log("Calculated average price:", average);
 
     numericData = numericData.map((d) => {
       if (d.numericPrice == null || isNaN(d.numericPrice)) {
@@ -67,77 +76,47 @@ const PricesList = () => {
       return d;
     });
 
-    const minPrice = Math.min(...numericData.map((d) => d.numericPrice));
+    // 3) Determine the best (lowest) price
+    if (numericData.length) {
+      const minPrice = Math.min(...numericData.map((d) => d.numericPrice));
+      numericData = numericData.map((d) => ({
+        ...d,
+        isBestPrice: d.numericPrice === minPrice,
+      }));
+    }
 
-    numericData = numericData.map((d) => ({
-      ...d,
-      isBestPrice: d.numericPrice === minPrice,
-    }));
-
+    // 4) Sort ascending by price
     numericData.sort((a, b) => a.numericPrice - b.numericPrice);
 
+    console.log("Final numericData after sort:", numericData);
     setParsedData(numericData);
   }, [results]);
 
-  // Auto-save to DB
+  // Once parsedData is ready, pick 1 random non-best item for AI Predicted
   useEffect(() => {
-    if (!parsedData.length || hasSaved) return;
+    if (!parsedData.length) return;
 
-    let priceUber = 0,
-      priceBolt = 0,
-      priceJeeny = 0,
-      priceCareem = 0;
+    // Indices of items that are NOT best price
+    const nonBestIndices = parsedData
+      .map((item, index) => (item.isBestPrice ? -1 : index))
+      .filter((idx) => idx !== -1);
 
-    parsedData.forEach((item) => {
-      switch (item.app) {
-        case "Uber":
-          priceUber = item.numericPrice;
-          break;
-        case "Bolt":
-          priceBolt = item.numericPrice;
-          break;
-        case "Jeeny":
-          priceJeeny = item.numericPrice;
-          break;
-        case "Careem":
-          priceCareem = item.numericPrice;
-          break;
-      }
-    });
+    if (nonBestIndices.length > 0) {
+      // Randomly pick one among the non-best-price items
+      const randomIndex = Math.floor(Math.random() * nonBestIndices.length);
+      const chosen = nonBestIndices[randomIndex];
+      setAiIndex(chosen);
+      console.log("AI Predicted index chosen:", chosen);
+    } else {
+      // If *all* items are best price, we won't show the AI badge at all
+      setAiIndex(null);
+      console.log("All items have best price. No AI predicted chosen.");
+    }
+  }, [parsedData]);
 
-    const userId = results[0]?.user_id || 0;
-
-    const now = new Date();
-    const date = now.toISOString().slice(0, 10);
-    const time = now.toTimeString().slice(0, 5);
-
-    fetch("http://10.0.2.2:5001/db/save_ride_and_trip", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: userId,
-        start_point: pickupText,
-        destination: destinationText,
-        price_uber: priceUber || 0,
-        price_bolt: priceBolt || 0,
-        price_jeeny: priceJeeny || 0,
-        price_careem: priceCareem || 0,
-        distance_km: distance,
-        date,
-        time,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("Auto-save response:", data);
-        setHasSaved(true);
-      })
-      .catch((err) => {
-        console.log("Auto-save error:", err);
-      });
-  }, [parsedData, hasSaved, results, pickupText, destinationText, distance]);
-
+  // Fallback if no results
   if (!results.length) {
+    console.log("No results passed in. Displaying fallback text.");
     return (
       <View style={styles.container}>
         <Text>No results available. Please try again later.</Text>
@@ -147,6 +126,8 @@ const PricesList = () => {
 
   return (
     <View style={styles.container}>
+      {console.log("Rendering the PricesList screen...")}
+
       <Headlines headline="Prices List" />
       <View style={styles.tripContainer}>
         <Trip pickup={pickupText} destination={destinationText} />
@@ -154,11 +135,22 @@ const PricesList = () => {
 
       <ScrollView contentContainerStyle={styles.cardList}>
         {parsedData.map((item, idx) => {
+          const showAiBadge = (idx === aiIndex);
+
+          console.log(`Rendering card #${idx} =>`, item);
+
           let logoSource;
-          if (item.app === "Uber") logoSource = require("../assets/Uber-logo.png");
-          else if (item.app === "Bolt") logoSource = require("../assets/Bolt-logo.png");
-          else if (item.app === "Jeeny") logoSource = require("../assets/Jeeny-logo.png");
-          else if (item.app === "Careem") logoSource = require("../assets/Careem-logo.png");
+          if (item.app === "Uber") {
+            logoSource = require("../assets/Uber-logo.png");
+          } else if (item.app === "Bolt") {
+            logoSource = require("../assets/Bolt-logo.png");
+          } else if (item.app === "Jeeny") {
+            logoSource = require("../assets/Jeeny-logo.png");
+          } else if (item.app === "Careem") {
+            logoSource = require("../assets/Careem-logo.png");
+          } else {
+            console.log(`No logo found for app: ${item.app}`);
+          }
 
           return (
             <View style={styles.card} key={idx}>
@@ -168,6 +160,7 @@ const PricesList = () => {
                   <Text style={styles.priceText}>
                     {item.numericPrice?.toFixed(2)} SAR
                   </Text>
+
                   {item.isBestPrice && (
                     <View style={styles.bestPriceBadge}>
                       <Image
@@ -175,6 +168,13 @@ const PricesList = () => {
                         style={styles.moneyIcon}
                       />
                       <Text style={styles.bestPriceText}>Best Price!</Text>
+                    </View>
+                  )}
+
+                  {/* Show the AI badge only on 1 random non-best-price item */}
+                  {showAiBadge && (
+                    <View style={styles.aiBadge}>
+                      <Text style={styles.aiBadgeText}>AI Predicted</Text>
                     </View>
                   )}
                 </View>
@@ -197,7 +197,7 @@ const PricesList = () => {
   );
 };
 
-// same styles...
+// ---- Styles ----
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -231,10 +231,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
-  logo: { width: 70, height: 70, marginRight: 16 },
-  cardContent: { flex: 1, justifyContent: "center" },
-  row: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  priceText: { fontSize: 16, fontWeight: "bold", color: "#292929" },
+  logo: {
+    width: 70,
+    height: 70,
+    marginRight: 16,
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+  priceText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#292929",
+  },
   bestPriceBadge: {
     backgroundColor: Color.mustard300,
     paddingVertical: 2,
@@ -242,12 +257,37 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: Color.mustard300,
-    marginLeft: 55,
+    marginLeft: 39,
     flexDirection: "row",
     alignItems: "center",
+    marginRight: 10,
+    marginTop: 4,
   },
-  moneyIcon: { width: 16, height: 16, marginRight: 7 },
-  bestPriceText: { color: "#292929", fontSize: 12, fontWeight: "bold" },
+  moneyIcon: {
+    width: 16,
+    height: 16,
+    marginRight: 7,
+  },
+  bestPriceText: {
+    color: "#292929",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  // AI badge aligned similarly as Best Price
+  aiBadge: {
+    backgroundColor: "#188cf1",
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    marginLeft: 60, // same as bestPriceBadge
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  aiBadgeText: {
+    fontSize: 12,
+    fontWeight: "bold",
+  },
   openAppButton: {
     backgroundColor: "#009B73",
     borderRadius: 8,
@@ -260,7 +300,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  openAppIcon: { width: 17, height: 17, marginRight: 8 },
+  openAppIcon: {
+    width: 17,
+    height: 17,
+    marginRight: 8,
+  },
   openAppText: {
     color: "#FFFFFF",
     fontSize: 17,
