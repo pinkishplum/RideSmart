@@ -1,52 +1,4 @@
-## BACKEND
-- make it more reliable
-- make it auto start / restart in case of errors
-- make it more efficient by allowing each user 2 tries
-- add checks to current state
-- fix condition when requests requires choosing a gate (e.g. gate 1, gate 2, gate 3) for malls
-- fix condition when requests requires clicking on okay button (okay) for pobular stops like KAFD
 
-
-## FRONTEND
-- finish location entering by map pickup/destination
-- add bottom taps
-- fix page structure and look
-- set up api to fetch pickup and destination entered
-
-
-## GENERAL
-- search how to make apps redirect
-- search how to utilize multiple emulators opens for each app
-- set up on uni servers
-
-### TODAY
-- Create endpoints for creating and registering an account
-- Set up all endpoints in one file
-- Server Directory have app.py file which will have all the apis in one file
-- Finish login and signup
-
-### TODAY <-
-
-- Finsih Search and maps logic
-- Connect user with Search page to fetch currently signed in user name
-- make endpoints to get pickup and destination location
-
-### TODAY
-- Finsih trip summary
-- make api to connect currently signed in user
-
-### TODAY
-- REVISE FULL BACK-END
-- Make everyting start with single run
-- implement auto restart and auto fix
-
-### TODAY
-- FIX POPUP ISSUES IN BACKEND
-- FINISH PRICE LIST AND PAST COMPARISIONS
-- CONNECT OFFERS PAGE WITH DB
-
-
-### Proccessing improvments
 
 
 Mohammed do:
@@ -74,11 +26,11 @@ bottom bars appears on
  account page
 
 
+todo:
 
-// connect app to db
-save done searches to db
-make account be able to update user details
-
-
+connect to cloud db
+fix layout
+fix ios issue
+publish
 
 

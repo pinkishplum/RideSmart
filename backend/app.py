@@ -1,18 +1,11 @@
-"""server/endpoints.py"""
-
 from flask import Flask
-from db.db import initialize_db
-from db.endpoints import api
-from backend.endpoints import api_1
+from backend.endpoints import app as firebase_endpoints  # Import Firebase-based endpoints
 
 app = Flask(__name__)
 
-# Initialize DB before handling any requests
-initialize_db()
-app.register_blueprint(api, url_prefix='/db')
-app.register_blueprint(api_1, url_prefix='/proccess')
-
+# Register the Firebase-based endpoints
+app.register_blueprint(firebase_endpoints, url_prefix='/api')
 
 if __name__ == '__main__':
+    # Use port 5001 or any port of your choice
     app.run(host='0.0.0.0', port=5001, debug=True)
-
