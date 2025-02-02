@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request
-from firebase_config import db  # This file initializes firebase_admin and Firestore
+from .firebase_config import db  # This file initializes firebase_admin and Firestore
 
 app = Flask(__name__)
 
