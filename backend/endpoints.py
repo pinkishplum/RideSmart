@@ -3,7 +3,7 @@ from .firebase_config import db  # This file initializes firebase_admin and Fire
 
 app = Flask(__name__)
 
-# ----------------- Helper Functions ----------------- #
+# ----------------- Helper Functions ---------------- #
 
 def user_exists(email):
     """
