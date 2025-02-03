@@ -54,7 +54,7 @@ const TripSummary = () => {
       try {
         // If on Android emulator, use 10.0.2.2.
         // If on a real device, use your local machine IP (e.g. 192.168.x.x)
-        const endpoint = "https://ridesmart-q66b.onrender.com/proccess/get_prices";
+        const endpoint = "https://ridesmart-q66b.onrender.com/api/get_prices";
         console.log("Calling /get_prices with:", {
           user_id,
           distance,
