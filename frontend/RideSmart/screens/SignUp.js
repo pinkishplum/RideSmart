@@ -1,10 +1,15 @@
-import * as React from "react";
-import { Image, StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert } from "react-native";
+// screens/SignUp.js
+import React, { useState } from "react";
+import { Alert, ScrollView, StyleSheet, Text, View, TouchableOpacity, Image } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import InputField from "../components/InputField";
 import Button from "../components/Button";
-import { FontFamily, FontSize, Color, Gap, Border } from "../GlobalStyles";
-import { scale, verticalScale, moderateScale } from 'react-native-size-matters'; // استيراد المكتبة
+import { scale, verticalScale, moderateScale } from "react-native-size-matters";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "../firebaseConfig";
+import { FontFamily, FontSize, Color, Gap } from "../GlobalStyles";
+
 
 const SignUp = () => {
   const navigation = useNavigation();
@@ -29,22 +34,32 @@ const SignUp = () => {
     }
 
     try {
-      const response = await fetch('https://ridesmart-q66b.onrender.com/db/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ first_name: firstName, last_name: lastName, email, password })
-      });
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-      const data = await response.json();
+await setDoc(doc(db, "users", user.uid), {
+  firstName,
+  lastName,
+  email,
+  createdAt: new Date(),
+});
 
-      if (response.ok) {
-        Alert.alert("Success", data.message);
-        navigation.navigate("LogIn");
-      } else {
-        Alert.alert("Error", data.error || "Registration failed");
-      }
+      Alert.alert("Success", "Account created successfully!");
+      navigation.navigate("LogIn");
     } catch (error) {
-      Alert.alert("Error", "Could not connect to the server.");
+      let errorMessage = "Registration failed. Please try again.";
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage = "Email already in use.";
+          break;
+        case 'auth/invalid-email':
+          errorMessage = "Invalid email address.";
+          break;
+        case 'auth/weak-password':
+          errorMessage = "Password should be at least 6 characters.";
+          break;
+      }
+      Alert.alert("Error", errorMessage);
     }
   };
 

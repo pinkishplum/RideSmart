@@ -1,21 +1,24 @@
 // screens/LogIn.js
-
 import React, { useState } from "react";
 import { Image, StyleSheet, Text, View, TouchableOpacity, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { useUser } from '../context/UserContext'; // Import UserContext
-import InputField from '../components/InputField';
-import Button from '../components/Button';
-import { FontFamily, FontSize, Color, Gap, Border } from "../GlobalStyles";
-import Search from "./Search";
+import { useUser } from "../context/UserContext";
+import InputField from "../components/InputField";
+import Button from "../components/Button";
+import { FontFamily, FontSize, Color, Gap } from "../GlobalStyles";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore"; // Add Firestore imports
+import { auth, db } from "../firebaseConfig"; // Import firestore
+
 
 const LogIn = () => {
   const navigation = useNavigation();
-  const { updateUser } = useUser(); // Access updateUser from UserContext
+  const { updateUser } = useUser();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
+
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -24,42 +27,67 @@ const LogIn = () => {
     }
 
     try {
-      const response = await fetch('https://ridesmart-q66b.onrender.com/db/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      // 1) Sign in the user via Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      if (!user?.uid) {
+        Alert.alert("Error", "Invalid user credentials");
+        return;
+      }
+
+      console.log("Attempting to access Firestore with UID:", user.uid);
+
+      // 2) Get user document from Firestore
+      //    doc(firestore, "users", user.uid) references the 'users' collection doc with ID = user.uid
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        // If there's no doc in the 'users' collection for this UID,
+        // you can decide how you want to handle it.
+        throw new Error("User data not found in Firestore");
+      }
+
+      // 3) Extract user data from Firestore
+      const userData = userDoc.data();
+      console.log("Firestore user data:", userData);
+
+      // 4) Update global context with user data
+      updateUser({
+        user_id: user.uid,
+        email: user.email,
+        first_name: userData.firstName || userData.first_name || "",
+        last_name: userData.lastName  || userData.last_name  || "",
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        const { user_id, first_name, last_name, message } = data;
-
-        // Update global context with user data
-        updateUser({
-          user_id,
-          first_name,
-          last_name,
-          email,
-        });
-
-        Alert.alert("Success", message);
-
-        // Navigate to Search screen
-        navigation.reset(
-            {
+      // 5) Success feedback and navigation
+      Alert.alert("Success", "Logged in successfully!");
+      navigation.reset({
         index: 0,
         routes: [{ name: "Main", params: { screen: "Search" } }],
-        }
-        )
+      });
 
-
-      } else {
-        Alert.alert("Error", data.error || "Login failed");
-      }
     } catch (error) {
-      console.error('Login Error:', error);
-      Alert.alert("Error", "Could not connect to the server.");
+      let errorMessage = "Login failed. Please try again.";
+      if (error.code) {
+        // Check for Firebase Auth errors
+        switch (error.code) {
+          case "auth/user-not-found":
+            errorMessage = "User not found.";
+            break;
+          case "auth/wrong-password":
+            errorMessage = "Invalid password.";
+            break;
+          case "auth/invalid-email":
+            errorMessage = "Invalid email address.";
+            break;
+        }
+      } else {
+        // Possibly a Firestore error or other
+        console.log("Error retrieving Firestore doc:", error.message);
+      }
+      Alert.alert("Error", errorMessage);
     }
   };
 

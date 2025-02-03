@@ -1,3 +1,18 @@
 
 *.xml
 *.xml
+*.json
+/frontend/RideSmart/node_modules
+/frontend/RideSmart/node_modules
+/frontend/RideSmart/node_modules/regenerate-unicode-properties
+/frontend/RideSmart/node_modules
+*.mjs
+/frontend/my-app/.expo
+*.json
+/frontend/my-app
+frontend/my-app/.watchmanconfig
+/frontend/RideSmart/node_modules
+/frontend/RideSmart/node_modules
+*.md
+/frontend/my-app/node_modules
+*.iml
